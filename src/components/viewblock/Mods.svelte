@@ -79,7 +79,9 @@
 let localMods: LocalMod[] = [];
 let isLoadingLocalMods = false;
 let isLoadingInstalledMods = false;
+
 let isSearchingInstalledMods = false;
+
 let totalPages = 1;
 $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 
