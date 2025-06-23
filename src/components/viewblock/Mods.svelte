@@ -76,8 +76,10 @@
 		talisman: boolean;
 	}
 
-	let localMods: LocalMod[] = [];
-	let isLoadingLocalMods = false;
+let localMods: LocalMod[] = [];
+let isLoadingLocalMods = false;
+let isLoadingInstalledMods = false;
+$: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 
 	async function handleModToggled(): Promise<void> {
 		if ($currentCategory === "Installed Mods") {
@@ -975,10 +977,11 @@
 		}
 	}
 
-	async function refreshInstalledMods() {
-		try {
-			await forceRefreshCache();
-			installedMods = await fetchCachedMods();
+async function refreshInstalledMods() {
+        isLoadingInstalledMods = true;
+        try {
+                await forceRefreshCache();
+                installedMods = await fetchCachedMods();
 
 			// Update installation status for all mods in the store
 			for (const mod of $modsStore) {
@@ -1036,10 +1039,12 @@
 
 			// Filter mods by enabled status
 			updateEnabledDisabledLists();
-		} catch (error) {
-			console.error("Failed to refresh installed mods:", error);
-		}
-	}
+        } catch (error) {
+                console.error("Failed to refresh installed mods:", error);
+        } finally {
+                isLoadingInstalledMods = false;
+        }
+}
 
 	async function openModsFolder() {
 		try {
@@ -1202,19 +1207,18 @@
 					</div>
 				</div>
 
-				<div class="mods-scroll-container default-scrollbar">
-					{#if $currentCategory === "Installed Mods"}
-						{#if isLoadingLocalMods}
-							<div class="section-header">
-								<h3>Local Mods</h3>
-								<p>
-									Loading local mods{".".repeat($loadingDots)}
-								</p>
-							</div>
-						{:else if localMods.length > 0}
-							<div class="section-header">
-								<div class="section-header-content">
-									<h3>Local Mods</h3>
+                                <div class="mods-scroll-container default-scrollbar">
+                                        {#if $currentCategory === "Installed Mods"}
+                                                {#if isSearchingInstalledMods}
+                                                        <div class="loading-container">
+                                                                <p class="loading-text">
+                                                                        Searching for installed mods{".".repeat($loadingDots)}
+                                                                </p>
+                                                        </div>
+                                                {:else if localMods.length > 0}
+                                                        <div class="section-header">
+                                                                <div class="section-header-content">
+                                                                        <h3>Local Mods</h3>
 									<p>
 										These mods were installed manually
 										(outside the mod manager)
@@ -1296,10 +1300,10 @@
 									<Folder size={20} /> Open Mods Folder
 								</button>
 							</div>
-						{:else if !isLoadingLocalMods && localMods.length === 0 && paginatedMods.length === 0}
-							<div class="no-mods-message">
-								<p>No installed mods.</p>
-								<div class="no-mods-buttons">
+                                                {:else if localMods.length === 0 && paginatedMods.length === 0}
+                                                        <div class="no-mods-message">
+                                                                <p>No installed mods.</p>
+                                                                <div class="no-mods-buttons">
 									<button
 										class="open-folder-button"
 										onclick={openModsFolder}
@@ -1309,10 +1313,10 @@
 									</button>
 								</div>
 							</div>
-						{/if}
+                                                {/if}
 
-						<!-- Only proceed with catalog enabled/disabled sections if there are mods to show -->
-						{#if paginatedMods.length > 0}
+                                                <!-- Only proceed with catalog enabled/disabled sections if there are mods to show -->
+                                                {#if paginatedMods.length > 0}
 							<!-- Enabled Catalog Mods -->
 							{#if enabledMods.length > 0}
 								<div class="subsection-header enabled">

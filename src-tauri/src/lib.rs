@@ -1235,9 +1235,16 @@ async fn check_mod_installation(mod_type: String) -> Result<bool, String> {
 
     let cached_mods = match cache::load_cache() {
         Ok(Some((mods, _))) => mods,
-        _ => Vec::new(), // Empty vector if no cache
+        _ => Vec::new(),
     };
-    let detected_mods = local_mod_detection::detect_manual_mods(&db, &cached_mods)?;
+
+    let detected_mods = if let Some((mods, _)) = cache::load_local_mods_cache().map_err(|e| e.to_string())? {
+        mods
+    } else {
+        let mods = local_mod_detection::detect_manual_mods(&db, &cached_mods)?;
+        cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
+        mods
+    };
 
     let mod_name = mod_type.as_str();
     match mod_name {
@@ -1414,12 +1421,18 @@ async fn delete_manual_mod(path: String) -> Result<(), String> {
 async fn get_detected_local_mods(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<local_mod_detection::DetectedMod>, String> {
+    if let Some((mods, _)) = cache::load_local_mods_cache().map_err(|e| e.to_string())? {
+        return Ok(mods);
+    }
+
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let cached_mods = match cache::load_cache() {
         Ok(Some((mods, _))) => mods,
-        _ => Vec::new(), // Empty vector if no cache
+        _ => Vec::new(),
     };
-    local_mod_detection::detect_manual_mods(&db, &cached_mods)
+    let mods = local_mod_detection::detect_manual_mods(&db, &cached_mods)?;
+    cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
+    Ok(mods)
 }
 
 #[tauri::command]
