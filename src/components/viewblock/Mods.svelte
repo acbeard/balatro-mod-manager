@@ -79,6 +79,7 @@
 let localMods: LocalMod[] = [];
 let isLoadingLocalMods = false;
 let isLoadingInstalledMods = false;
+let totalPages = 1;
 $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 
 	async function handleModToggled(): Promise<void> {
@@ -254,18 +255,18 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		setTimeout(() => {}, 500); // Delay to prevent scroll handler triggering during animated scroll
 	}
 
-	function updateEnabledDisabledLists() {
-		// Filter catalog mods - explicitly check for boolean values
-		enabledMods = paginatedMods.filter(
-			(mod) =>
-				$installationStatus[mod.title] &&
-				$modEnabledStore[mod.title] === true,
-		);
-		disabledMods = paginatedMods.filter(
-			(mod) =>
-				$installationStatus[mod.title] &&
-				$modEnabledStore[mod.title] === false,
-		);
+        function updateEnabledDisabledLists() {
+                // Filter catalog mods using the full filtered list to ensure counts span all pages
+                enabledMods = sortedAndFilteredMods.filter(
+                        (mod) =>
+                                $installationStatus[mod.title] &&
+                                $modEnabledStore[mod.title] === true,
+                );
+                disabledMods = sortedAndFilteredMods.filter(
+                        (mod) =>
+                                $installationStatus[mod.title] &&
+                                $modEnabledStore[mod.title] === false,
+                );
 
 		// Filter local mods - explicitly check for boolean values
 		enabledLocalMods = localMods.filter(
@@ -897,11 +898,14 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		}
 	});
 
-	function handleCategoryClick(category: string) {
-		currentPage.set(1);
-		startPage = 1; // Reset sliding window
-		currentCategory.set(category);
-	}
+        function handleCategoryClick(category: string) {
+                currentPage.set(1);
+                startPage = 1; // Reset sliding window
+                currentCategory.set(category);
+                if (category === "Installed Mods") {
+                        totalPages = 1; // prevent stale page count while mods load
+                }
+        }
 
 	document.addEventListener("click", (e) => {
 		const target = e.target as HTMLElement;
@@ -960,11 +964,21 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		}
 	}
 
-	$: totalPages = Math.ceil(sortedAndFilteredMods.length / $itemsPerPage);
-	$: paginatedMods = sortedAndFilteredMods.slice(
-		($currentPage - 1) * $itemsPerPage,
-		$currentPage * $itemsPerPage,
-	);
+       // Defer page calculation until mods finish loading to avoid stale counts
+       $: if (!isLoadingInstalledMods && !isLoadingLocalMods) {
+               totalPages = Math.max(
+                       1,
+                       Math.ceil(sortedAndFilteredMods.length / $itemsPerPage),
+               );
+               if ($currentPage > totalPages) {
+                       currentPage.set(totalPages);
+                       updatePaginationWindow();
+               }
+               paginatedMods = sortedAndFilteredMods.slice(
+                       ($currentPage - 1) * $itemsPerPage,
+                       $currentPage * $itemsPerPage,
+               );
+       }
 
 	const maxVisiblePages = 5;
 	let startPage = 1;
