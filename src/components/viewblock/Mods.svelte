@@ -956,34 +956,41 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 
 	$: sortedAndFilteredMods = sortMods(filteredMods, $currentSort);
 
-	$: {
-		if (sortedAndFilteredMods) {
-			// Ensure pagination is updated
-			paginatedMods = sortedAndFilteredMods.slice(
-				($currentPage - 1) * $itemsPerPage,
-				$currentPage * $itemsPerPage,
-			);
-			// Update enabled/disabled lists if on the InstalledMods page
-			if ($currentCategory === "Installed Mods") {
-				updateEnabledDisabledLists();
-			}
-		}
-	}
+       $: {
+               if (sortedAndFilteredMods) {
+                       if ($currentCategory === "Installed Mods") {
+                               // Show all installed mods on a single page
+                               paginatedMods = sortedAndFilteredMods;
+                               updateEnabledDisabledLists();
+                       } else {
+                               // Paginate normally for other categories
+                               paginatedMods = sortedAndFilteredMods.slice(
+                                       ($currentPage - 1) * $itemsPerPage,
+                                       $currentPage * $itemsPerPage,
+                               );
+                       }
+               }
+       }
 
        // Defer page calculation until mods finish loading to avoid stale counts
        $: if (!isLoadingInstalledMods && !isLoadingLocalMods) {
-               totalPages = Math.max(
-                       1,
-                       Math.ceil(sortedAndFilteredMods.length / $itemsPerPage),
-               );
-               if ($currentPage > totalPages) {
-                       currentPage.set(totalPages);
-                       updatePaginationWindow();
+               if ($currentCategory === "Installed Mods") {
+                       totalPages = 1;
+                       paginatedMods = sortedAndFilteredMods;
+               } else {
+                       totalPages = Math.max(
+                               1,
+                               Math.ceil(sortedAndFilteredMods.length / $itemsPerPage),
+                       );
+                       if ($currentPage > totalPages) {
+                               currentPage.set(totalPages);
+                               updatePaginationWindow();
+                       }
+                       paginatedMods = sortedAndFilteredMods.slice(
+                               ($currentPage - 1) * $itemsPerPage,
+                               $currentPage * $itemsPerPage,
+                       );
                }
-               paginatedMods = sortedAndFilteredMods.slice(
-                       ($currentPage - 1) * $itemsPerPage,
-                       $currentPage * $itemsPerPage,
-               );
        }
 
 	const maxVisiblePages = 5;
@@ -1175,10 +1182,11 @@ async function refreshInstalledMods() {
 						{/if}
 					{/if}
 
-					<div
-						class="pagination-controls"
-						in:fly={{ duration: 400, y: 10, opacity: 0.2 }}
-					>
+                                       {#if totalPages > 1}
+                                       <div
+                                               class="pagination-controls"
+                                               in:fly={{ duration: 400, y: 10, opacity: 0.2 }}
+                                       >
 						<button
 							onclick={previousPage}
 							disabled={$currentPage === 1}>Previous</button
@@ -1198,7 +1206,8 @@ async function refreshInstalledMods() {
 							onclick={nextPage}
 							disabled={$currentPage === totalPages}>Next</button
 						>
-					</div>
+                                       </div>
+                                       {/if}
 
 					<div
 						class="sort-controls"
