@@ -79,10 +79,12 @@
 let localMods: LocalMod[] = [];
 let isLoadingLocalMods = false;
 let isLoadingInstalledMods = false;
+
 let isSearchingInstalledMods = false;
 let filteredMods: Mod[] = [];
 let sortedAndFilteredMods: Mod[] = [];
 let paginatedMods: Mod[] = [];
+
 let totalPages = 1;
 $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 
