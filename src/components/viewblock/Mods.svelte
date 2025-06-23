@@ -254,18 +254,18 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		setTimeout(() => {}, 500); // Delay to prevent scroll handler triggering during animated scroll
 	}
 
-	function updateEnabledDisabledLists() {
-		// Filter catalog mods - explicitly check for boolean values
-		enabledMods = paginatedMods.filter(
-			(mod) =>
-				$installationStatus[mod.title] &&
-				$modEnabledStore[mod.title] === true,
-		);
-		disabledMods = paginatedMods.filter(
-			(mod) =>
-				$installationStatus[mod.title] &&
-				$modEnabledStore[mod.title] === false,
-		);
+        function updateEnabledDisabledLists() {
+                // Filter catalog mods using the full filtered list to ensure counts span all pages
+                enabledMods = sortedAndFilteredMods.filter(
+                        (mod) =>
+                                $installationStatus[mod.title] &&
+                                $modEnabledStore[mod.title] === true,
+                );
+                disabledMods = sortedAndFilteredMods.filter(
+                        (mod) =>
+                                $installationStatus[mod.title] &&
+                                $modEnabledStore[mod.title] === false,
+                );
 
 		// Filter local mods - explicitly check for boolean values
 		enabledLocalMods = localMods.filter(
