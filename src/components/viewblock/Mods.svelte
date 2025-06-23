@@ -79,6 +79,7 @@
 let localMods: LocalMod[] = [];
 let isLoadingLocalMods = false;
 let isLoadingInstalledMods = false;
+let totalPages = 1;
 $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 
 	async function handleModToggled(): Promise<void> {
@@ -897,11 +898,14 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		}
 	});
 
-	function handleCategoryClick(category: string) {
-		currentPage.set(1);
-		startPage = 1; // Reset sliding window
-		currentCategory.set(category);
-	}
+        function handleCategoryClick(category: string) {
+                currentPage.set(1);
+                startPage = 1; // Reset sliding window
+                currentCategory.set(category);
+                if (category === "Installed Mods") {
+                        totalPages = 1; // prevent stale page count while mods load
+                }
+        }
 
 	document.addEventListener("click", (e) => {
 		const target = e.target as HTMLElement;
@@ -960,11 +964,21 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		}
 	}
 
-	$: totalPages = Math.ceil(sortedAndFilteredMods.length / $itemsPerPage);
-	$: paginatedMods = sortedAndFilteredMods.slice(
-		($currentPage - 1) * $itemsPerPage,
-		$currentPage * $itemsPerPage,
-	);
+       // Defer page calculation until mods finish loading to avoid stale counts
+       $: if (!isLoadingInstalledMods && !isLoadingLocalMods) {
+               totalPages = Math.max(
+                       1,
+                       Math.ceil(sortedAndFilteredMods.length / $itemsPerPage),
+               );
+               if ($currentPage > totalPages) {
+                       currentPage.set(totalPages);
+                       updatePaginationWindow();
+               }
+               paginatedMods = sortedAndFilteredMods.slice(
+                       ($currentPage - 1) * $itemsPerPage,
+                       $currentPage * $itemsPerPage,
+               );
+       }
 
 	const maxVisiblePages = 5;
 	let startPage = 1;
