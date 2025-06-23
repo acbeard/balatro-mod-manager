@@ -69,8 +69,8 @@ export const selectedModStore = writable<{ name: string; path: string } | null>(
 export const dependentsStore = writable<string[]>([]);
 export const currentPage = writable(1);
 
-// Allow at least nine mods to appear before creating a new page
-export const itemsPerPage = writable(9);
+// Allow at least sixteen mods to appear before creating a new page
+export const itemsPerPage = writable(16);
 
 
 export type UninstallResult = {
