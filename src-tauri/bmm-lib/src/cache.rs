@@ -23,6 +23,12 @@ struct ModCache {
     mods: Vec<Mod>,
 }
 
+#[derive(Serialize, Deserialize)]
+struct LocalModCache {
+    header: CacheHeader,
+    mods: Vec<crate::local_mod_detection::DetectedMod>,
+}
+
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Mod {
@@ -104,6 +110,15 @@ pub fn clear_cache() -> Result<(), AppError> {
     if mods_cache.exists() {
         std::fs::remove_file(&mods_cache).map_err(|e| AppError::FileWrite {
             path: mods_cache,
+            source: e.to_string(),
+        })?;
+    }
+
+    // Delete local mods cache
+    let local_mods_cache = cache_dir.join("local_mods.cache.bin.gz");
+    if local_mods_cache.exists() {
+        std::fs::remove_file(&local_mods_cache).map_err(|e| AppError::FileWrite {
+            path: local_mods_cache,
             source: e.to_string(),
         })?;
     }
@@ -245,6 +260,20 @@ pub fn get_cache_path() -> Result<PathBuf, AppError> {
     Ok(path)
 }
 
+fn get_local_mods_cache_path() -> Result<PathBuf, AppError> {
+    let mut path = dirs::cache_dir()
+        .ok_or_else(|| AppError::DirNotFound(PathBuf::from("cache directory")))?
+        .join("balatro-mod-manager");
+
+    std::fs::create_dir_all(&path).map_err(|e| AppError::DirCreate {
+        path: path.clone(),
+        source: e.to_string(),
+    })?;
+
+    path.push("local_mods.cache.bin.gz");
+    Ok(path)
+}
+
 pub fn save_cache(mods: &[Mod]) -> Result<(), AppError> {
     let path = get_cache_path()?;
     let file = File::create(&path).map_err(|e| AppError::FileWrite {
@@ -332,6 +361,89 @@ pub fn load_cache() -> Result<Option<(Vec<Mod>, u64)>, AppError> {
     Ok(Some((cache.mods, cache.header.timestamp)))
 }
 
+pub fn save_local_mods_cache(
+    mods: &[crate::local_mod_detection::DetectedMod],
+) -> Result<(), AppError> {
+    let path = get_local_mods_cache_path()?;
+    let file = File::create(&path).map_err(|e| AppError::FileWrite {
+        path: path.clone(),
+        source: e.to_string(),
+    })?;
+
+    let mut encoder = GzEncoder::new(file, Compression::default());
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| AppError::SystemTime(e.to_string()))?
+        .as_secs();
+
+    let cache = LocalModCache {
+        header: CacheHeader {
+            version: 1,
+            timestamp,
+        },
+        mods: mods.to_vec(),
+    };
+
+    let config = bincode::config::standard();
+    let encoded = bincode::serde::encode_to_vec(&cache, config).map_err(|e| AppError::Serialization {
+        format: "bincode".into(),
+        source: e.to_string(),
+    })?;
+
+    encoder.write_all(&encoded).map_err(|e| AppError::FileWrite {
+        path,
+        source: e.to_string(),
+    })?;
+
+    Ok(())
+}
+
+pub fn load_local_mods_cache(
+) -> Result<Option<(Vec<crate::local_mod_detection::DetectedMod>, u64)>, AppError>
+{
+    let path = get_local_mods_cache_path()?;
+    let mut file = match File::open(&path) {
+        Ok(f) => f,
+        Err(_) => return Ok(None),
+    };
+
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).map_err(|e| AppError::FileRead {
+        path: path.clone(),
+        source: e.to_string(),
+    })?;
+
+    let mut decoder = GzDecoder::new(buffer.as_slice());
+    let mut decompressed = Vec::new();
+    if let Err(e) = decoder.read_to_end(&mut decompressed) {
+        return Err(AppError::FileRead {
+            path: path.clone(),
+            source: e.to_string(),
+        });
+    }
+
+    let config = bincode::config::standard();
+    let (cache, _): (LocalModCache, _) = match bincode::serde::decode_from_slice(&decompressed, config) {
+        Ok(result) => result,
+        Err(_) => return Ok(None),
+    };
+
+    if cache.header.version != 1 {
+        return Ok(None);
+    }
+
+    let current_time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| AppError::SystemTime(e.to_string()))?
+        .as_secs();
+
+    if current_time - cache.header.timestamp > CACHE_DURATION {
+        return Ok(None);
+    }
+
+    Ok(Some((cache.mods, cache.header.timestamp)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -380,6 +492,33 @@ mod tests {
 
             assert_eq!(loaded.0.len(), 1);
             assert_eq!(loaded.0[0].title, "Test Mod");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn test_local_mod_cache_lifecycle() -> Result<(), AppError> {
+        use crate::local_mod_detection::DetectedMod;
+        with_temp_cache(|_| {
+            let test_mod = DetectedMod {
+                name: "Test".into(),
+                id: "Test".into(),
+                author: vec!["Me".into()],
+                description: "desc".into(),
+                prefix: "test".into(),
+                version: None,
+                path: "/tmp/test".into(),
+                dependencies: vec![],
+                conflicts: vec![],
+                catalog_match: None,
+                is_duplicate: false,
+            };
+
+            save_local_mods_cache(&[test_mod.clone()])?;
+            let loaded = load_local_mods_cache()?.expect("Should load cache");
+
+            assert_eq!(loaded.0.len(), 1);
+            assert_eq!(loaded.0[0].name, "Test");
             Ok(())
         })
     }
