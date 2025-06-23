@@ -1232,7 +1232,7 @@ async function refreshInstalledMods() {
                                                 {#if isSearchingInstalledMods}
                                                         <div class="loading-container">
                                                                 <p class="loading-text">
-                                                                        Searching for installed mods{".".repeat($loadingDots)}
+                                                                        Refreshing installed mods{".".repeat($loadingDots)}
                                                                 </p>
                                                         </div>
                                                 {:else if localMods.length > 0}
