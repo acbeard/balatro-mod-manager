@@ -7,9 +7,14 @@ export async function performReindexMods() {
 	try {
 		const hasUntracked = await invoke<boolean>('check_untracked_mods');
 
-		if (hasUntracked) {
-			showWarningPopup.set(true);
-		} else {
+                if (hasUntracked) {
+                        showWarningPopup.set({
+                                visible: true,
+                                message: "Untracked mods detected. Continue?",
+                                onConfirm: () => { },
+                                onCancel: () => { }
+                        });
+                } else {
 			await invoke("refresh_mods_folder");
 			addMessage("Mods re-indexed successfully", "success");
 		}
@@ -25,5 +30,10 @@ export async function confirmReindex() {
 	} catch (error) {
 		addMessage("Failed to re-index mods: " + error, "error");
 	}
-	showWarningPopup.set(false);
+        showWarningPopup.set({
+                visible: false,
+                message: "",
+                onConfirm: () => { },
+                onCancel: () => { }
+        });
 }

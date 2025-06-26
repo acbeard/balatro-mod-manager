@@ -35,7 +35,7 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import SearchView from "./SearchView.svelte";
 	import { onMount } from "svelte";
-	import { writable } from "svelte/store";
+        import { writable } from "svelte/store";
 	import { addMessage } from "$lib/stores";
 	import { currentPage, itemsPerPage } from "../../stores/modStore";
 	import ModCard from "./ModCard.svelte";
@@ -45,10 +45,8 @@
 		fetchCachedMods,
 		forceRefreshCache,
 	} from "../../stores/modCache";
-	import { updateAvailableStore } from "../../stores/modStore";
+        import { updateAvailableStore, modEnabledStore } from "../../stores/modStore";
 
-	// Add this import for the enabled/disabled mod store
-	const modEnabledStore = writable<Record<string, boolean>>({});
 	const loadingDots = writable(0);
 	let installedMods: InstalledMod[] = [];
 
@@ -660,17 +658,18 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		}
 	};
 
-	interface ModMeta {
-		title: string;
-		"requires-steamodded": boolean;
-		"requires-talisman": boolean;
-		categories: string[];
-		author: string;
-		repo: string;
-		downloadURL?: string;
-		folderName?: string;
-		version?: string;
-	}
+        interface ModMeta {
+                title: string;
+                "requires-steamodded": boolean;
+                "requires-talisman": boolean;
+                categories: string[];
+                author: string;
+                repo: string;
+                downloadURL?: string;
+                folderName?: string;
+                version?: string;
+                "last-updated"?: number;
+        }
 
 	const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 	// const CACHE_DURATION = 5 * 1000; // 5 seconds
