@@ -658,17 +658,18 @@ $: isSearchingInstalledMods = isLoadingLocalMods || isLoadingInstalledMods;
 		}
 	};
 
-	interface ModMeta {
-		title: string;
-		"requires-steamodded": boolean;
-		"requires-talisman": boolean;
-		categories: string[];
-		author: string;
-		repo: string;
-		downloadURL?: string;
-		folderName?: string;
-		version?: string;
-	}
+        interface ModMeta {
+                title: string;
+                "requires-steamodded": boolean;
+                "requires-talisman": boolean;
+                categories: string[];
+                author: string;
+                repo: string;
+                downloadURL?: string;
+                folderName?: string;
+                version?: string;
+                "last-updated"?: number;
+        }
 
 	const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 	// const CACHE_DURATION = 5 * 1000; // 5 seconds
