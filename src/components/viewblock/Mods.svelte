@@ -35,7 +35,7 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import SearchView from "./SearchView.svelte";
 	import { onMount } from "svelte";
-	import { writable } from "svelte/store";
+        import { writable } from "svelte/store";
 	import { addMessage } from "$lib/stores";
 	import { currentPage, itemsPerPage } from "../../stores/modStore";
 	import ModCard from "./ModCard.svelte";
@@ -45,10 +45,8 @@
 		fetchCachedMods,
 		forceRefreshCache,
 	} from "../../stores/modCache";
-	import { updateAvailableStore } from "../../stores/modStore";
+        import { updateAvailableStore, modEnabledStore } from "../../stores/modStore";
 
-	// Add this import for the enabled/disabled mod store
-	const modEnabledStore = writable<Record<string, boolean>>({});
 	const loadingDots = writable(0);
 	let installedMods: InstalledMod[] = [];
 
