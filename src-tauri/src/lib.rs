@@ -1232,20 +1232,24 @@ fn load_valid_local_mods(
     db: &Database,
     cached_catalog_mods: &[cache::Mod],
 ) -> Result<Vec<local_mod_detection::DetectedMod>, String> {
-    if let Some((mut mods, _)) = cache::load_local_mods_cache().map_err(|e| e.to_string())? {
-        let original_len = mods.len();
-        mods.retain(|m| Path::new(&m.path).exists());
-        if mods.len() != original_len {
-            let fresh = local_mod_detection::detect_manual_mods(db, cached_catalog_mods)?;
-            cache::save_local_mods_cache(&fresh).map_err(|e| e.to_string())?;
-            return Ok(fresh);
+    // Always detect mods on disk to capture additions or metadata changes
+    let fresh_mods = local_mod_detection::detect_manual_mods(db, cached_catalog_mods)?;
+
+    // Compare with the cached set to avoid unnecessary writes
+    if let Some((cached_mods, _)) = cache::load_local_mods_cache().map_err(|e| e.to_string())? {
+        let cached_paths: std::collections::HashSet<String> =
+            cached_mods.into_iter().filter(|m| Path::new(&m.path).exists()).map(|m| m.path).collect();
+        let fresh_paths: std::collections::HashSet<String> =
+            fresh_mods.iter().map(|m| m.path.clone()).collect();
+
+        if cached_paths != fresh_paths {
+            cache::save_local_mods_cache(&fresh_mods).map_err(|e| e.to_string())?;
         }
-        return Ok(mods);
+    } else {
+        cache::save_local_mods_cache(&fresh_mods).map_err(|e| e.to_string())?;
     }
 
-    let mods = local_mod_detection::detect_manual_mods(db, cached_catalog_mods)?;
-    cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
-    Ok(mods)
+    Ok(fresh_mods)
 }
 
 #[tauri::command]
@@ -1259,7 +1263,6 @@ async fn check_mod_installation(mod_type: String) -> Result<bool, String> {
     };
 
     let detected_mods = load_valid_local_mods(&db, &cached_mods)?;
-
 
     let mod_name = mod_type.as_str();
     match mod_name {
@@ -1436,7 +1439,6 @@ async fn delete_manual_mod(path: String) -> Result<(), String> {
 async fn get_detected_local_mods(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<local_mod_detection::DetectedMod>, String> {
-
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let cached_mods = match cache::load_cache() {
         Ok(Some((mods, _))) => mods,
