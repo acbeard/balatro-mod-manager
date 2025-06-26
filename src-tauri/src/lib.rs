@@ -1228,6 +1228,26 @@ fn find_executable_in_directory(dir: &PathBuf) -> Option<PathBuf> {
     None
 }
 
+fn load_valid_local_mods(
+    db: &Database,
+    cached_catalog_mods: &[cache::Mod],
+) -> Result<Vec<local_mod_detection::DetectedMod>, String> {
+    if let Some((mut mods, _)) = cache::load_local_mods_cache().map_err(|e| e.to_string())? {
+        let original_len = mods.len();
+        mods.retain(|m| Path::new(&m.path).exists());
+        if mods.len() != original_len {
+            let fresh = local_mod_detection::detect_manual_mods(db, cached_catalog_mods)?;
+            cache::save_local_mods_cache(&fresh).map_err(|e| e.to_string())?;
+            return Ok(fresh);
+        }
+        return Ok(mods);
+    }
+
+    let mods = local_mod_detection::detect_manual_mods(db, cached_catalog_mods)?;
+    cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
+    Ok(mods)
+}
+
 #[tauri::command]
 async fn check_mod_installation(mod_type: String) -> Result<bool, String> {
     let db = map_error(Database::new())?;
@@ -1238,19 +1258,8 @@ async fn check_mod_installation(mod_type: String) -> Result<bool, String> {
         _ => Vec::new(),
     };
 
-    let detected_mods = if let Some((mut mods, _)) = cache::load_local_mods_cache().map_err(|e| e.to_string())? {
-        let original_len = mods.len();
-        mods.retain(|m| Path::new(&m.path).exists());
-        if mods.len() != original_len {
-            // persist cleaned cache
-            cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
-        }
-        mods
-    } else {
-        let mods = local_mod_detection::detect_manual_mods(&db, &cached_mods)?;
-        cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
-        mods
-    };
+    let detected_mods = load_valid_local_mods(&db, &cached_mods)?;
+
 
     let mod_name = mod_type.as_str();
     match mod_name {
@@ -1427,22 +1436,14 @@ async fn delete_manual_mod(path: String) -> Result<(), String> {
 async fn get_detected_local_mods(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<local_mod_detection::DetectedMod>, String> {
-    if let Some((mut mods, _)) = cache::load_local_mods_cache().map_err(|e| e.to_string())? {
-        let original_len = mods.len();
-        mods.retain(|m| Path::new(&m.path).exists());
-        if mods.len() != original_len {
-            cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
-        }
-        return Ok(mods);
-    }
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let cached_mods = match cache::load_cache() {
         Ok(Some((mods, _))) => mods,
         _ => Vec::new(),
     };
-    let mods = local_mod_detection::detect_manual_mods(&db, &cached_mods)?;
-    cache::save_local_mods_cache(&mods).map_err(|e| e.to_string())?;
+
+    let mods = load_valid_local_mods(&db, &cached_mods)?;
     Ok(mods)
 }
 
