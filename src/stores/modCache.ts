@@ -14,11 +14,10 @@ const createModCache = () => {
         async function getModsFromCache(forceRefresh = false): Promise<InstalledMod[]> {
                 const now = Date.now();
 
-                if (forceRefresh || lastFetchTime === 0 || now - lastFetchTime > CACHE_TIMEOUT) {
-                        try {
-                                // Clean up stale database entries before fetching
-                                await invoke("reindex_mods");
-                                const installed: InstalledMod[] = await invoke("get_installed_mods_from_db");
+
+               if (forceRefresh || lastFetchTime === 0 || now - lastFetchTime > CACHE_TIMEOUT) {
+                       try {
+                               const installed: InstalledMod[] = await invoke("get_installed_mods_from_db");
 				const formattedMods = installed.map((mod) => ({
 					name: mod.name,
 					path: mod.path,
@@ -54,10 +53,15 @@ const createModCache = () => {
 			return mods.some(m => m.name.toLowerCase() === modTitle.toLowerCase());
 		},
 
-		// Force refresh the cache
-		forceRefreshCache: async () => {
-			return getModsFromCache(true);
-		}
+               // Force refresh the cache
+               forceRefreshCache: async () => {
+                       try {
+                               await invoke("reindex_mods");
+                       } catch (error) {
+                               console.error("Failed to reindex mods:", error);
+                       }
+                       return getModsFromCache(true);
+               }
 	};
 };
 
