@@ -11,12 +11,14 @@ const createModCache = () => {
 	const CACHE_TIMEOUT = 2000; // 2 seconds
 
 	// Core cache function that handles all operations
-	async function getModsFromCache(forceRefresh = false): Promise<InstalledMod[]> {
-		const now = Date.now();
+        async function getModsFromCache(forceRefresh = false): Promise<InstalledMod[]> {
+                const now = Date.now();
 
-		if (forceRefresh || lastFetchTime === 0 || now - lastFetchTime > CACHE_TIMEOUT) {
-			try {
-				const installed: InstalledMod[] = await invoke("get_installed_mods_from_db");
+                if (forceRefresh || lastFetchTime === 0 || now - lastFetchTime > CACHE_TIMEOUT) {
+                        try {
+                                // Clean up stale database entries before fetching
+                                await invoke("reindex_mods");
+                                const installed: InstalledMod[] = await invoke("get_installed_mods_from_db");
 				const formattedMods = installed.map((mod) => ({
 					name: mod.name,
 					path: mod.path,
