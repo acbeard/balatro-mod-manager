@@ -14,6 +14,7 @@ const createModCache = () => {
         async function getModsFromCache(forceRefresh = false): Promise<InstalledMod[]> {
                 const now = Date.now();
 
+
                if (forceRefresh || lastFetchTime === 0 || now - lastFetchTime > CACHE_TIMEOUT) {
                        try {
                                const installed: InstalledMod[] = await invoke("get_installed_mods_from_db");
