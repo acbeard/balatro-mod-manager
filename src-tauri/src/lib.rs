@@ -1260,6 +1260,7 @@ async fn check_mod_installation(mod_type: String) -> Result<bool, String> {
 
     let detected_mods = load_valid_local_mods(&db, &cached_mods)?;
 
+
     let mod_name = mod_type.as_str();
     match mod_name {
         "Steamodded" | "Talisman" => Ok(installed_mods.iter().any(|m| m.name == mod_name)
@@ -1435,6 +1436,7 @@ async fn delete_manual_mod(path: String) -> Result<(), String> {
 async fn get_detected_local_mods(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<local_mod_detection::DetectedMod>, String> {
+
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let cached_mods = match cache::load_cache() {
         Ok(Some((mods, _))) => mods,
